@@ -11,7 +11,21 @@
 
 class OAuth2_Provider_Facebook extends OAuth2_Provider
 {
-	protected $scope = array('offline_access', 'email', 'read_stream');
+
+	protected $scope = array('email','user_status');
+
+	public function getsslpage($url) {
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+		curl_setopt($ch, CURLOPT_HEADER, false);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_REFERER, $url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+		$result = curl_exec($ch);
+		curl_close($ch);
+		return $result;
+	}
 
 	public function url_authorize()
 	{
@@ -25,11 +39,15 @@ class OAuth2_Provider_Facebook extends OAuth2_Provider
 
 	public function get_user_info(OAuth2_Token_Access $token)
 	{
-		$url = 'https://graph.facebook.com/me?'.http_build_query(array(
-			'access_token' => $token->access_token,
-		));
 
-		$user = json_decode(file_get_contents($url));
+		$appsecret_proof= hash_hmac('sha256', $token, $config['fb_appsecret']);
+		$url = 'https://graph.facebook.com/v2.6/me?'.http_build_query(array(
+			'access_token' => $token->access_token,
+				'appsecret_proof'=>$appsecret_proof,
+				'fields'=>"id,name,first_name,last_name,email,hometown,bio,link,picture.type(large)"
+		));
+		$ul=$this->getsslpage($url);
+		$user = json_decode($ul);
 
 		// Create a response from the request
 		return array(
@@ -41,9 +59,37 @@ class OAuth2_Provider_Facebook extends OAuth2_Provider
 			'email' => isset($user->email) ? $user->email : null,
 			'location' => isset($user->hometown->name) ? $user->hometown->name : null,
 			'description' => isset($user->bio) ? $user->bio : null,
-			'image' => 'https://graph.facebook.com/me/picture?type=normal&access_token='.$token->access_token,
+			'image' => $user->picture->data->url,
 			'urls' => array(
 			  'Facebook' => $user->link,
+			),
+		);
+	}
+
+	public function get_fbuser_info(OAuth2_Token_Access $token,$appsecret="")
+	{
+		$appsecret_proof= hash_hmac('sha256', $token, $appsecret);
+		$url = 'https://graph.facebook.com/v2.6/me?'.http_build_query(array(
+				'access_token' => $token->access_token,
+				'appsecret_proof'=>$appsecret_proof,
+				'fields'=>"id,name,first_name,last_name,email,hometown,bio,link,picture.type(large)"
+			));
+		$ul=$this->getsslpage($url);
+		$user = json_decode($ul);
+
+		// Create a response from the request
+		return array(
+			'uid' => $user->id,
+			'nickname' => isset($user->username) ? $user->username : null,
+			'name' => $user->name,
+			'first_name' => $user->first_name,
+			'last_name' => $user->last_name,
+			'email' => isset($user->email) ? $user->email : null,
+			'location' => isset($user->hometown->name) ? $user->hometown->name : null,
+			'description' => isset($user->bio) ? $user->bio : null,
+			'image' => $user->picture->data->url,
+			'urls' => array(
+				'Facebook' => $user->link,
 			),
 		);
 	}

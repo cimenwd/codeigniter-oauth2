@@ -11,6 +11,7 @@
 
 abstract class OAuth2_Provider
 {
+
 	/**
 	 * @var  string  provider name
 	 */
@@ -113,6 +114,7 @@ abstract class OAuth2_Provider
 	 * @return array basic user info
 	 */
 	abstract public function get_user_info(OAuth2_Token_Access $token);
+
 
 	/*
 	* Get an authorization code from Facebook.  Redirects to Facebook, which this redirects back to the app using the redirect address you've set.
